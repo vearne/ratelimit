@@ -16,20 +16,24 @@ local key_prefix = KEYS[1]
 local duration_secs = tonumber(ARGV[1])
 local throughput = tonumber(ARGV[2])
 local batch_size = tonumber(ARGV[3])
+local key = key_prefix .. ":" .. tostring(math.ceil(tonumber(current_timestamp[1])/duration_secs))
+local n = redis.call("GET", key)
 
-local key = key_prefix .. ":" .. tostring(tonumber(current_timestamp[1])/duration_secs))
-
-local n = redis.call("GET"， key)
-if n >= throughput then 
-	return 0
+if n == false then
+    n = 0
+else
+    n = tonumber(n)
 end
 
-local increment = min(throughout - n, batch_size)
+if n >= throughput then
+    return 0
+end
 
+local increment = math.min(throughput - n, batch_size)
+redis.replicate_commands();
 redis.call("INCRBY", key, increment)
-redis.call("EXPIRE", key, batch_size * 3)
+redis.call("EXPIRE", key, duration_secs * 3)
 return increment
-
 `
 
 type RedisRateLimiter struct {
@@ -47,7 +51,7 @@ type RedisRateLimiter struct {
 //
 
 func NewRedisRateLimiter(client *redis.Client, keyPrefix string,
-	duration time.Duration, throughput int, batchSize int) (*RedisRateLimiter, error) {
+	duration time.Duration, throughput int, batchSize int) (*RedisRateLimiter) {
 
 	durationSecs := duration / time.Second
 	if durationSecs < 1 {
@@ -67,7 +71,7 @@ func NewRedisRateLimiter(client *redis.Client, keyPrefix string,
 	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
 		r.scriptSHA1 = r.redisClient.ScriptLoad(SCRIPT).Val()
 	}
-	return r, nil
+	return r
 }
 
 func (r *RedisRateLimiter) Take() bool {
@@ -81,18 +85,20 @@ func (r *RedisRateLimiter) Take() bool {
 	}
 
 	// 尝试从Redis获取
-	result := r.redisClient.EvalSha(
+	count := r.redisClient.EvalSha(
 		r.scriptSHA1,
 		[]string{r.keyPrefix},
 		r.durationSecs,
 		r.throughput,
 		r.batchSize,
 	).Val().(int64)
-	if result <= 0{
+
+
+	if count <= 0{
 		r.Unlock()
 		return false
 	}else{
-		r.N = result
+		r.N = count
 		r.N--
 		r.Unlock()
 		return true
