@@ -61,7 +61,7 @@ func NewRedisRateLimiter(client *redis.Client, keyPrefix string,
 
 **注意**
 频率 = throughput / duration    
-另外为了保证性能足够高，duration的最高精度是秒    
+另外为了保证性能足够高，duration的最小精度是秒    
 
 
 
