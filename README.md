@@ -53,14 +53,14 @@ The function prototype is as follows:
 func NewRedisRateLimiter(client *redis.Client, keyPrefix string,
 	duration time.Duration, throughput int, batchSize int) (*RedisRateLimiter)
 ```
-|参数|说明|
+|parameter|Description|
 |:---|:---|
 |keyPrefix|Key prefix in Redis|
 |duration|Indicates that the operation `throughput` is allowed in the `duration` time interval|
 |throughput|Indicates that the operation `throughput` is allowed in the `duration` time interval|
 |batchSize|The number of available operations each time retrieved from redis|
 
-**注意**
+**NOTICE**
 rate-limit = throughput / duration
 In addition, in order to ensure that the performance is high enough, the minimum precision of duration is seconds.
 
