@@ -1,24 +1,25 @@
-# 基于redis的分布式限频库
+# Distributed rate-limit library based on Redis
 
 ---
 
-### 总述
-这个库的目标是为了能够简单粗暴的实现分布式限频功能, 类似于ID生成器的用法，client每次从ID拿回-批数据(在这里只是一个数值)进行消费，只要没有消费完，就没有达到频率限制。
+### Overview
+The goal of this library is to be able to implement distributed rate limit functions simply and rudely. Similar to the usage of the ID generator, the client takes back the data from Redis - batch data (just a value here), as long as it Is not consumed.it doesn't exceed rate-limit.
 
+* [中文 README](https://github.com/vearne/ratelimit/blob/master/README_zh.md)
 
-### 优势
-* 依赖少，只依赖redis，不需要专门的服务
-* 使用的redis自己的时钟，不需要相应的服务器时钟完全一致
-* 线程(协程)安全
-* 系统开销小，对redis的压力很小
+### Advantage
+* Less dependencies, only rely on Redis, no special services required
+* use Redis own clock, The clients no need to have the same clock
+* Thread (coroutine) security
+* Low system overhead and little pressure on redis
 
 ### How to get
 ```
 go get github.com/vearne/ratelimit
 ```
 ### Usage
-#### 1. 创建 redis.Client
-依赖 "github.com/go-redis/redis"
+#### 1. create redis.Client
+with "github.com/go-redis/redis"
 ```
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -27,7 +28,7 @@ go get github.com/vearne/ratelimit
 	})
 ```
 
-#### 2. 创建限频器
+#### 2. create RateLimiter
 ```
 	limiter := ratelimit.NewRedisRateLimiter(client,
 		"push",
@@ -36,7 +37,7 @@ go get github.com/vearne/ratelimit
 		10,
 	)
 ```
-表示允许每秒操作200次
+Indicates that 200 operations per second are allowed
 ```
 	limiter := ratelimit.NewRedisRateLimiter(client,
 		"push",
@@ -45,27 +46,27 @@ go get github.com/vearne/ratelimit
 		10,
 	)
 ```
-表示允许每分钟操作200次
+Indicates that 200 operations per minute are allowed
 
-函数原型如下：
+The function prototype is as follows:
 ```
 func NewRedisRateLimiter(client *redis.Client, keyPrefix string,
 	duration time.Duration, throughput int, batchSize int) (*RedisRateLimiter)
 ```
 |参数|说明|
 |:---|:---|
-|keyPrefix|redis中key的前缀|
-|duration|表明在duration时间间隔内允许操作throughput次|
-|throughput|表明在duration时间间隔内允许操作throughput次|
-|batchSize|每次从redis拿回的可用操作的数量|
+|keyPrefix|Key prefix in Redis|
+|duration|Indicates that the operation `throughput` is allowed in the `duration` time interval|
+|throughput|Indicates that the operation `throughput` is allowed in the `duration` time interval|
+|batchSize|The number of available operations each time retrieved from redis|
 
 **注意**
-频率 = throughput / duration    
-另外为了保证性能足够高，duration的最小精度是秒    
+rate-limit = throughput / duration
+In addition, in order to ensure that the performance is high enough, the minimum precision of duration is seconds.
 
 
 
-完整例子
+#### Complete example
 ```
 package main
 
@@ -115,13 +116,13 @@ func main() {
 ```
 
 
-### thanks
-模块的开发受到了资料1的启发，在此表示感谢
+### Thanks
+The development of the module was inspired by the Reference 1.
 
 
 
-### 资料
-1. [性能百万/s：腾讯轻量级全局流控方案详解](http://wetest.qq.com/lab/view/320.html)
+### Reference
+1. [Performance million/s: Tencent lightweight global flow control program](http://wetest.qq.com/lab/view/320.html)
 
 
 
