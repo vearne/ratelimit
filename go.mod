@@ -1,4 +1,4 @@
-module ratelimit
+module github.com/vearne/ratelimit
 
 go 1.12
 
