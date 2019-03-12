@@ -24,7 +24,7 @@ end
 local increment = math.min(throughput_per_sec - n, batch_size)
 redis.replicate_commands();
 redis.call("INCRBY", key, increment)
-redis.call("EXPIRE", key, 30)
+redis.call("EXPIRE", key, 3)
 return increment
 `
 
