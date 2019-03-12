@@ -78,8 +78,8 @@ package main
 import (
 	"fmt"
 	"github.com/go-redis/redis"
+	"github.com/vearne/ratelimit"
 	"math/rand"
-	"ratelimit"
 	"sync"
 	"time"
 )
@@ -96,15 +96,15 @@ func consume(r *ratelimit.RedisRateLimiter, group *sync.WaitGroup) {
 
 func main() {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr: "localhost:6379",
 		Password: "xxxxx", // password set
-		DB:       0,       // use default DB
+		DB: 0, // use default DB
 	})
 
 	limiter, _ := ratelimit.NewRedisRateLimiter(client,
 		"push",
 		1*time.Second,
-		100,
+		500,
 		10,
 		//ratelimit.CounterAlg,
 		ratelimit.TokenBucketAlg,
