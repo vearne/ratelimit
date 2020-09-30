@@ -8,10 +8,6 @@ import (
 	"time"
 )
 
-type Limiter interface {
-	Take() bool
-}
-
 func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Duration,
 	throughput int,
 	batchSize int) (Limiter, error) {
@@ -45,7 +41,7 @@ func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Durat
 	}
 
 	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
-		r.scriptSHA1 = r.redisClient.ScriptLoad(script).Val()
+		r.redisClient.ScriptLoad(script).Val()
 	}
 
 	return &r, nil
@@ -84,7 +80,7 @@ func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.D
 	}
 
 	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
-		r.scriptSHA1 = r.redisClient.ScriptLoad(script).Val()
+		r.redisClient.ScriptLoad(script).Val()
 	}
 
 	return &r, nil
@@ -106,7 +102,7 @@ func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Durat
 		return nil, errors.New("duration must greater than 0")
 	}
 
-	script := algMap[TokenBucketAlg]
+	script := algMap[LeakyBucketAlg]
 	scriptSHA1 := fmt.Sprintf("%x", sha1.Sum([]byte(script)))
 
 	r := LeakyBucketLimiter{
@@ -115,9 +111,8 @@ func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Durat
 	}
 
 	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
-		r.scriptSHA1 = r.redisClient.ScriptLoad(script).Val()
+		r.redisClient.ScriptLoad(script).Val()
 	}
 
 	return &r, nil
 }
-

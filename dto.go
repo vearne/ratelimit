@@ -1,11 +1,14 @@
 package ratelimit
 
 import (
-	"fmt"
 	"github.com/go-redis/redis"
 	"sync"
 	"time"
 )
+
+type Limiter interface {
+	Take() (bool, error)
+}
 
 type BaseRateLimiter struct {
 	sync.Mutex
@@ -17,40 +20,45 @@ type BaseRateLimiter struct {
 type CounterLimiter struct {
 	BaseRateLimiter
 
-	duration    time.Duration
-	throughput  int
-	batchSize   int
-	N           int64
+	duration   time.Duration
+	throughput int
+	batchSize  int
+	N          int64
 }
 
-
-func (r *CounterLimiter) Take() bool{
+func (r *CounterLimiter) Take() (bool, error) {
 	// 1. try to get from local
 	r.Lock()
 
 	if r.N > 0 {
 		r.N = r.N - 1
 		r.Unlock()
-		return true
+		return true, nil
 	}
 
 	// 2. try to get from redis
-	count := r.redisClient.EvalSha(
+	x, err := r.redisClient.EvalSha(
 		r.scriptSHA1,
 		[]string{r.key},
-		int(r.duration/ time.Microsecond),
+		int(r.duration/time.Microsecond),
 		r.throughput,
 		r.batchSize,
-	).Val().(int64)
+	).Result()
+
+	if err != nil {
+		return false, err
+	}
+
+	count := x.(int64)
 
 	if count <= 0 {
 		r.Unlock()
-		return false
+		return false, nil
 	} else {
 		r.N = count
 		r.N--
 		r.Unlock()
-		return true
+		return true, nil
 	}
 }
 
@@ -58,19 +66,19 @@ type TokenBucketLimiter struct {
 	BaseRateLimiter
 
 	throughputPerSec float64
-	batchSize   int
-	maxCapacity int
-	N           int64
+	batchSize        int
+	maxCapacity      int
+	N                int64
 }
 
-func (r *TokenBucketLimiter) Take() bool{
+func (r *TokenBucketLimiter) Take() (bool, error) {
 	// 1. try to get from local
 	r.Lock()
 
 	if r.N > 0 {
 		r.N = r.N - 1
 		r.Unlock()
-		return true
+		return true, nil
 	}
 
 	// 2. try to get from redis
@@ -82,23 +90,22 @@ func (r *TokenBucketLimiter) Take() bool{
 		r.maxCapacity,
 	).Result()
 
-	if err!= nil{
-		fmt.Println(err)
+	if err != nil {
+		return false, err
 	}
+
 	count := x.(int64)
 
 	if count <= 0 {
 		r.Unlock()
-		return false
+		return false, nil
 	} else {
 		r.N = count
 		r.N--
 		r.Unlock()
-		return true
+		return true, nil
 	}
 }
-
-
 
 type LeakyBucketLimiter struct {
 	BaseRateLimiter
@@ -107,17 +114,23 @@ type LeakyBucketLimiter struct {
 	interval time.Duration
 }
 
-func (r *LeakyBucketLimiter) Take() bool {
+func (r *LeakyBucketLimiter) Take() (bool, error) {
 	// try to get from redis
-	count := r.redisClient.EvalSha(
+	x, err := r.redisClient.EvalSha(
 		r.scriptSHA1,
 		[]string{r.key},
-		r.interval/time.Microsecond,
-	).Val().(int64)
+		int(r.interval/time.Microsecond),
+	).Result()
+
+	if err != nil {
+		return false, err
+	}
+
+	count := x.(int64)
 
 	if count <= 0 {
-		return false
+		return false, nil
 	} else {
-		return true
+		return true, nil
 	}
 }
