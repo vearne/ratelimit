@@ -19,7 +19,8 @@ go get github.com/vearne/ratelimit
 ```
 ### Usage
 #### 1. create redis.Client
-with "github.com/go-redis/redis"
+with "github.com/go-redis/redis"   
+Supports both redis master-slave mode and cluster mode
 ```
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -27,45 +28,66 @@ with "github.com/go-redis/redis"
 		DB:       0,  // use default DB
 	})
 ```
+```
+	client := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:    []string{"127.0.0.1:6379"},
+		Password: "xxxx",
+	})
+```
 
 #### 2. create RateLimiter
 ```
-	limiter, _ := ratelimit.NewRedisRateLimiter(client,
-		"push",
-		1 * time.Second,
-		200,
-		10,
-		ratelimit.TokenBucketAlg,
-	)
+limiter, err := ratelimit.NewTokenBucketRateLimiter(client,                
+        "push", time.Second, 200, 20, 5)
 ```
 Indicates that 200 operations per second are allowed
 ```
-	limiter, _ := ratelimit.NewRedisRateLimiter(client,
-		"push",
-		1 * time.Minute,
-		200,
-		10,
-		ratelimit.TokenBucketAlg,
-	)
+limiter, err := ratelimit.NewTokenBucketRateLimiter(client,                
+        "push", time.Minute, 200, 20, 5)
 ```
-Indicates that 200 operations per minute are allowed
+Support multiple algorithms   
 
-The function prototype is as follows:
+
+#### 2.1 Counter algorithm
 ```
-func NewRedisRateLimiter(client *redis.Client, key string,
-	duration time.Duration, throughput int, batchSize int, alg int) (*RedisRateLimiter, error)
+func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Duration,
+	throughput int,
+	batchSize int) (Limiter, error)
 ```
+
 |parameter|Description|
 |:---|:---|
 |key|Key in Redis|
-|duration|Indicates that the operation `throughput` is allowed in the `duration` time interval|
-|throughput|Indicates that the operation `throughput` is allowed in the `duration` time interval|
+|duration|Indicates that the operation throughput is allowed in the duration time interval|
+|throughput|Indicates that the operation throughput is allowed in the duration time interval|
 |batchSize|The number of available operations each time retrieved from redis|
-|alg| algorithm, current legal value   (1) ratelimit.TokenBucketAlg : "Token Bucket Algorithm" (2) ratelimit.CounterAlg : "Counter Algorithm"|
 
-**NOTICE**
-rate-limit = throughput / duration
-In addition, in order to ensure that the performance is high enough, the minimum precision of duration is seconds.
+#### 2.2 Token bucket algorithm
+```
+func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.Duration,
+	throughput int, maxCapacity int,
+	batchSize int) (Limiter, error)
+```
+
+|parameter|Description|
+|:---|:---|
+|key|Key in Redis|
+|duration|Indicates that the operation throughput is allowed in the duration time interval|
+|throughput|Indicates that the operation throughput is allowed in the duration time interval|
+|maxCapacity|The maximum number of tokens that can be stored in the token bucket|
+|batchSize|The number of available operations each time retrieved from redis|
+
+#### 2.3 Leaky bucket algorithm
+```
+func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Duration,
+	throughput int) (Limiter, error)
+```
+
+|parameter|Description|
+|:---|:---|
+|key|Key in Redis|
+|duration|Indicates that the operation throughput is allowed in the duration time interval|
+|throughput|Indicates that the operation throughput is allowed in the duration time interval|
 
 
 
