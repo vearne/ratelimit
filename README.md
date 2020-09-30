@@ -1,4 +1,5 @@
 # Distributed rate-limit library based on Redis
+![travis-ci](https://www.travis-ci.org/vearne/ratelimit.svg?branch=master)
 
 ---
 
