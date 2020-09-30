@@ -11,9 +11,13 @@ import (
 
 func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
 	for {
-		if r.Take() {
+		ok, err := r.Take()
+		if err != nil {
+			ok = true
+			fmt.Println("error", err)
+		}
+		if ok {
 			group.Done()
-			//fmt.Println("curr", time.Now())
 		} else {
 			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Millisecond)
 		}
@@ -23,19 +27,18 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
 func main() {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
-		Password: "xxx", // password set
-		DB:       0,       // use default DB
+		Password: "xxxx", // password set
+		DB:       0,      // use default DB
 	})
 
-
 	limiter, err := ratelimit.NewCounterRateLimiter(client,
-		"push",
+		"key:count",
 		time.Second,
-		10,
+		100,
 		2,
 	)
 
-	if err!= nil{
+	if err != nil {
 		fmt.Println("error", err)
 		return
 	}
