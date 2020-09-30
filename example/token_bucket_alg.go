@@ -3,15 +3,20 @@ package main
 import (
 	"fmt"
 	"github.com/go-redis/redis"
+	"github.com/vearne/ratelimit"
 	"math/rand"
-	"ratelimit"
 	"sync"
 	"time"
 )
 
-func consume(r *ratelimit.RedisRateLimiter, group *sync.WaitGroup) {
+func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
 	for {
-		if r.Take() {
+		ok, err := r.Take()
+		if err != nil {
+			ok = true
+			fmt.Println("error", err)
+		}
+		if ok {
 			group.Done()
 		} else {
 			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Millisecond)
@@ -26,17 +31,19 @@ func main() {
 		DB:       0,       // use default DB
 	})
 
-	limiter, _ := ratelimit.NewRedisRateLimiter(client,
-		"push",
-		1*time.Second,
+	limiter, err := ratelimit.NewTokenBucketRateLimiter(client, "key:token",
+		time.Second,
 		100,
-		10,
-		//ratelimit.CounterAlg,
-		ratelimit.TokenBucketAlg,
-	)
+		5,
+		2)
+
+	if err != nil {
+		fmt.Println("error", err)
+		return
+	}
 
 	var wg sync.WaitGroup
-	total := 5000
+	total := 500
 	wg.Add(total)
 	start := time.Now()
 	for i := 0; i < 100; i++ {

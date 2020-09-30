@@ -5,76 +5,114 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis"
-	"sync"
 	"time"
 )
 
-type RedisRateLimiter struct {
-	sync.Mutex
-	redisClient      *redis.Client
-	scriptSHA1       string
-	key              string
-	throughputPerSec int
-	batchSize        int
-	N                int64
+func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Duration,
+	throughput int,
+	batchSize int) (Limiter, error) {
+
+	_, err := client.Ping().Result()
+	if err != nil {
+		return nil, err
+	}
+
+	if duration < time.Millisecond {
+		return nil, errors.New("duration is too small")
+	}
+
+	if throughput <= 0 {
+		return nil, errors.New("duration must greater than 0")
+	}
+
+	if batchSize <= 0 {
+		return nil, errors.New("batchSize must greater than 0")
+	}
+
+	script := algMap[CounterAlg]
+	scriptSHA1 := fmt.Sprintf("%x", sha1.Sum([]byte(script)))
+
+	r := CounterLimiter{
+		BaseRateLimiter: BaseRateLimiter{redisClient: client, scriptSHA1: scriptSHA1, key: key},
+		duration:        duration,
+		throughput:      throughput,
+		batchSize:       batchSize,
+		N:               0,
+	}
+
+	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
+		r.redisClient.ScriptLoad(script).Val()
+	}
+
+	return &r, nil
 }
 
-// the smallest unit of duration is one seconds
-//
+func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.Duration,
+	throughput int, maxCapacity int,
+	batchSize int) (Limiter, error) {
 
-func NewRedisRateLimiter(client *redis.Client, key string,
-	duration time.Duration, throughput int, batchSize int, alg int) (*RedisRateLimiter, error) {
-
-	script, ok := algMap[alg]
-	if !ok {
-		return nil, errors.New("alg not support")
+	_, err := client.Ping().Result()
+	if err != nil {
+		return nil, err
 	}
 
-	durationSecs := duration / time.Second
-	if durationSecs < 1 {
-		durationSecs = 1
+	if duration < time.Millisecond {
+		return nil, errors.New("duration is too small")
 	}
 
-	r := &RedisRateLimiter{
-		redisClient:      client,
-		scriptSHA1:       fmt.Sprintf("%x", sha1.Sum([]byte(script))),
-		key:              key,
-		throughputPerSec: throughput / int(durationSecs),
+	if throughput <= 0 {
+		return nil, errors.New("duration must greater than 0")
+	}
+
+	if batchSize <= 0 {
+		return nil, errors.New("batchSize must greater than 0")
+	}
+
+	script := algMap[TokenBucketAlg]
+	scriptSHA1 := fmt.Sprintf("%x", sha1.Sum([]byte(script)))
+
+	r := TokenBucketLimiter{
+		BaseRateLimiter:  BaseRateLimiter{redisClient: client, scriptSHA1: scriptSHA1, key: key},
+		throughputPerSec: float64(throughput) / float64(duration/time.Second),
+		maxCapacity:      maxCapacity,
 		batchSize:        batchSize,
 		N:                0,
 	}
 
 	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
-		r.scriptSHA1 = r.redisClient.ScriptLoad(script).Val()
+		r.redisClient.ScriptLoad(script).Val()
 	}
-	return r, nil
+
+	return &r, nil
 }
 
-func (r *RedisRateLimiter) Take() bool {
-	// 1. try to get from local
-	r.Lock()
+func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Duration,
+	throughput int) (Limiter, error) {
 
-	if r.N > 0 {
-		r.N = r.N - 1
-		r.Unlock()
-		return true
+	_, err := client.Ping().Result()
+	if err != nil {
+		return nil, err
 	}
 
-	// 2. try to get from redis
-	count := r.redisClient.EvalSha(
-		r.scriptSHA1,
-		[]string{r.key},
-		r.throughputPerSec,
-		r.batchSize,
-	).Val().(int64)
-
-	if count <= 0 {
-		r.Unlock()
-		return false
-	} else {
-		r.N = count
-		r.N--
-		r.Unlock()
-		return true
+	if duration < time.Millisecond {
+		return nil, errors.New("duration is too small")
 	}
+
+	if throughput <= 0 {
+		return nil, errors.New("duration must greater than 0")
+	}
+
+	script := algMap[LeakyBucketAlg]
+	scriptSHA1 := fmt.Sprintf("%x", sha1.Sum([]byte(script)))
+
+	r := LeakyBucketLimiter{
+		BaseRateLimiter: BaseRateLimiter{redisClient: client, scriptSHA1: scriptSHA1, key: key},
+		interval:        duration / time.Duration(throughput),
+	}
+
+	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
+		r.redisClient.ScriptLoad(script).Val()
+	}
+
+	return &r, nil
 }
