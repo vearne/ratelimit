@@ -158,6 +158,6 @@ func main() {
 ### 资料
 1. [性能百万/s：腾讯轻量级全局流控方案详解](http://wetest.qq.com/lab/view/320.html)
 
-
-
+### 感谢
+[![jetbrains](img/jetbrains.svg)](https://www.jetbrains.com/?from=vearne)
 

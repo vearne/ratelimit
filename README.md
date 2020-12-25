@@ -155,5 +155,7 @@ The development of the module was inspired by the Reference 1.
 1. [Performance million/s: Tencent lightweight global flow control program](http://wetest.qq.com/lab/view/320.html)
 
 
+### Thanks
+[![jetbrains](img/jetbrains.svg)](https://www.jetbrains.com/?from=vearne)
 
 
