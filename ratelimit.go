@@ -4,8 +4,9 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
-	"github.com/go-redis/redis"
 	"time"
+
+	"github.com/go-redis/redis"
 )
 
 func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Duration,
@@ -22,7 +23,7 @@ func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Durat
 	}
 
 	if throughput <= 0 {
-		return nil, errors.New("duration must greater than 0")
+		return nil, errors.New("throughput must greater than 0")
 	}
 
 	if batchSize <= 0 {
@@ -61,7 +62,7 @@ func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.D
 	}
 
 	if throughput <= 0 {
-		return nil, errors.New("duration must greater than 0")
+		return nil, errors.New("throughput must greater than 0")
 	}
 
 	if batchSize <= 0 {
@@ -99,7 +100,7 @@ func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Durat
 	}
 
 	if throughput <= 0 {
-		return nil, errors.New("duration must greater than 0")
+		return nil, errors.New("throughput must greater than 0")
 	}
 
 	script := algMap[LeakyBucketAlg]
