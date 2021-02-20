@@ -16,6 +16,26 @@ client每次从Redis拿回-批数据(在这里只是一个数值)进行消费，
 * 线程(协程)安全
 * 系统开销小，对redis的压力很小
 
+## 注意
+不同类型的限频器在redis中的key的数据类型可能是不同的, 所以不同类型的限频器不能使用相同名称的Key。
+建议在命名时，有所区分。
+
+以TokenBucketRateLimiter和LeakyBucketLimiter 为例
+```
+127.0.0.1:6379> type key:leaky
+string
+127.0.0.1:6379> type key:token
+hash
+127.0.0.1:6379> hgetall key:token
+
+"token_count"
+"0"
+"updateTime"
+"1613805726567122"
+127.0.0.1:6379> get key:leaky
+"1613807035353864"
+```
+
 ## 安装
 ```
 go get github.com/vearne/ratelimit

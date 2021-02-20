@@ -14,6 +14,26 @@ The goal of this library is to be able to implement distributed rate limit funct
 * Thread (coroutine) security
 * Low system overhead and little pressure on redis
 
+## Notice
+Different types of limiters may have different redis-key data types in redis. 
+So different types of limiters cannot use same name redis-key.
+
+For example
+```
+127.0.0.1:6379> type key:leaky
+string
+127.0.0.1:6379> type key:token
+hash
+127.0.0.1:6379> hgetall key:token
+
+"token_count"
+"0"
+"updateTime"
+"1613805726567122"
+127.0.0.1:6379> get key:leaky
+"1613807035353864"
+```
+
 ### How to get
 ```
 go get github.com/vearne/ratelimit
