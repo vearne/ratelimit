@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type SlideTimeWindowRatelimit struct {
+type SlideTimeWindowLimiter struct {
 	sync.Mutex
 	buckets           []int
 	lastUpdateTime    time.Time
@@ -15,8 +15,8 @@ type SlideTimeWindowRatelimit struct {
 	windowBuckets     int
 }
 
-func NewSlideTimeWindowRatelimit(throught int, duration time.Duration, windowBuckets int) *SlideTimeWindowRatelimit {
-	s := SlideTimeWindowRatelimit{buckets: make([]int, windowBuckets)}
+func NewSlideTimeWindowLimiter(throught int, duration time.Duration, windowBuckets int) (Limiter, error) {
+	s := SlideTimeWindowLimiter{buckets: make([]int, windowBuckets)}
 	s.throught = throught
 	s.durationPerBucket = duration / time.Duration(windowBuckets)
 	s.duration = duration
@@ -25,10 +25,10 @@ func NewSlideTimeWindowRatelimit(throught int, duration time.Duration, windowBuc
 	for i := 0; i < windowBuckets; i++ {
 		s.buckets[i] = 0
 	}
-	return &s
+	return &s, nil
 }
 
-func (s *SlideTimeWindowRatelimit) Take() (bool, error) {
+func (s *SlideTimeWindowLimiter) Take() (bool, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -54,7 +54,7 @@ func (s *SlideTimeWindowRatelimit) Take() (bool, error) {
 	}
 }
 
-func (s *SlideTimeWindowRatelimit) Count() int {
+func (s *SlideTimeWindowLimiter) Count() int {
 	total := 0
 	for i := 0; i < s.windowBuckets; i++ {
 		total += s.buckets[i]

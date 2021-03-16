@@ -111,8 +111,20 @@ func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Durat
 |duration|表明在duration时间间隔内允许操作throughput次|
 |throughput|表明在duration时间间隔内允许操作throughput次|
 
+#### 2.4 滑动时间窗口
+```
+NewSlideTimeWindowLimiter(throught int, duration time.Duration, windowBuckets int) (Limiter, error)
+```
 
-完整例子
+|参数|说明|
+|:---|:---|
+|duration|表明在duration时间间隔内允许操作throughput次|
+|throughput|表明在duration时间间隔内允许操作throughput次|
+|windowBuckets|表明会针对duration创建windowBuckets个bucket,每个bucket代表的时间范围是duration/windowBuckets|
+
+注意：这个限频器是基于内存，不依赖Redis，所以它可能无法被用于分布式限频的场景。
+
+### 完整例子
 ```
 package main
 
@@ -124,12 +136,21 @@ import (
 	"sync"
 	"time"
 )
-
-func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
+func consume(r ratelimit.Limiter, group *sync.WaitGroup,
+	c * ratelimit.Counter, targetCount int) {
+	group.Add(1)
+	defer group.Done()
 	for {
-		if r.Take() {
-			group.Done()
-			fmt.Println("curr", time.Now())
+		ok, err := r.Take()
+		if err != nil {
+			ok = true
+			fmt.Println("error", err)
+		}
+		if ok {
+			value := c.Incre()
+			if value >= targetCount{
+				break
+			}
 		} else {
 			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Millisecond)
 		}
@@ -139,28 +160,27 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
 func main() {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
-		Password: "xxeQl*@nFE", // password set
+		Password: "xxxx", // password set
 		DB:       0,       // use default DB
 	})
 
-
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(client, "push",
+	limiter, err := ratelimit.NewTokenBucketRateLimiter(client, "key:token",
 		time.Second,
-		10,
+		100,
 		5,
-		2,)
+		2)
 
-	if err!= nil{
+	if err != nil {
 		fmt.Println("error", err)
 		return
 	}
 
 	var wg sync.WaitGroup
 	total := 500
-	wg.Add(total)
+	counter := ratelimit.NewCounter()
 	start := time.Now()
 	for i := 0; i < 100; i++ {
-		go consume(limiter, &wg)
+		go consume(limiter, &wg, counter, total)
 	}
 	wg.Wait()
 	cost := time.Since(start)

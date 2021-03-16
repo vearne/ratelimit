@@ -30,7 +30,7 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 	}
 }
 func main() {
-	limiter := ratelimit.NewSlideTimeWindowRatelimit(100, time.Second, 100)
+	limiter, _ := ratelimit.NewSlideTimeWindowLimiter(100, time.Second, 100)
 
 	var wg sync.WaitGroup
 	total := 500

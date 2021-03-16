@@ -15,7 +15,7 @@ The goal of this library is to be able to implement distributed rate limit funct
 * Low system overhead and little pressure on redis
 
 ## Notice
-Different types of limiters may have different redis-key data types in redis. 
+Different types of limiters may have different redis-key data types in redis.
 So different types of limiters cannot use same name redis-key.
 
 For example
@@ -66,7 +66,7 @@ Indicates that 200 operations per second are allowed
 limiter, err := ratelimit.NewTokenBucketRateLimiter(client,                
         "push", time.Minute, 200, 20, 5)
 ```
-Support multiple algorithms   
+Support multiple algorithms
 
 
 #### 2.1 Counter algorithm
@@ -110,7 +110,18 @@ func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Durat
 |duration|Indicates that the operation throughput is allowed in the duration time interval|
 |throughput|Indicates that the operation throughput is allowed in the duration time interval|
 
+#### 2.4 sliding time window
+```
+NewSlideTimeWindowLimiter(throught int, duration time.Duration, windowBuckets int) (Limiter, error)
+```
 
+|parameter|Description|
+|:---|:---|
+|duration|Indicates that the operation throughput is allowed in the duration time interval|
+|throughput|Indicates that the operation throughput is allowed in the duration time interval|
+|windowBuckets|Indicates that windowBuckets buckets will be created for duration, and the time range represented by each bucket is duration/windowBuckets|
+
+Note: This limiter is based on memory and does not rely on Redis, so it may not be used in distributed frequency limiting scenarios.
 
 #### Complete example
 ```
