@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-redis/redis"
 	"github.com/vearne/ratelimit"
 	"math/rand"
 	"sync"
 	"time"
 )
+
+
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 	c * ratelimit.Counter, targetCount int) {
 	group.Add(1)
@@ -28,24 +29,8 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 		}
 	}
 }
-
 func main() {
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "xxxx", // password set
-		DB:       0,       // use default DB
-	})
-
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(client, "key:token",
-		time.Second,
-		100,
-		5,
-		2)
-
-	if err != nil {
-		fmt.Println("error", err)
-		return
-	}
+	limiter, _ := ratelimit.NewSlideTimeWindowLimiter(100, time.Second, 100)
 
 	var wg sync.WaitGroup
 	total := 500
