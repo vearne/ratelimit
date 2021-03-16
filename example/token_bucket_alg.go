@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 )
-
-func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
+func consume(r ratelimit.Limiter, group *sync.WaitGroup,
+	c * ratelimit.Counter, targetCount int) {
+	group.Add(1)
+	defer group.Done()
 	for {
 		ok, err := r.Take()
 		if err != nil {
@@ -17,7 +19,10 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
 			fmt.Println("error", err)
 		}
 		if ok {
-			group.Done()
+			value := c.Incre()
+			if value >= targetCount{
+				break
+			}
 		} else {
 			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Millisecond)
 		}
@@ -27,7 +32,7 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup) {
 func main() {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
-		Password: "xxxxx", // password set
+		Password: "xxxx", // password set
 		DB:       0,       // use default DB
 	})
 
@@ -44,10 +49,10 @@ func main() {
 
 	var wg sync.WaitGroup
 	total := 500
-	wg.Add(total)
+	counter := ratelimit.NewCounter()
 	start := time.Now()
 	for i := 0; i < 100; i++ {
-		go consume(limiter, &wg)
+		go consume(limiter, &wg, counter, total)
 	}
 	wg.Wait()
 	cost := time.Since(start)
