@@ -10,11 +10,12 @@ type Limiter interface {
 	Take() (bool, error)
 }
 
+//nolint: govet
 type BaseRateLimiter struct {
+	sync.Mutex
 	scriptSHA1  string
 	key         string
 	redisClient redis.Cmdable
-	sync.Mutex
 }
 
 type CounterLimiter struct {

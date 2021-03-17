@@ -5,14 +5,17 @@ import (
 	"time"
 )
 
+//nolint: govet
 type SlideTimeWindowLimiter struct {
-	throughput        int
-	windowBuckets     int
-	duration          time.Duration
-	durationPerBucket time.Duration
 	sync.Mutex
-	lastUpdateTime time.Time
-	buckets        []int
+
+	duration      time.Duration
+	throughput    int
+	windowBuckets int
+
+	durationPerBucket time.Duration
+	lastUpdateTime    time.Time
+	buckets           []int
 }
 
 func NewSlideTimeWindowLimiter(throughput int, duration time.Duration, windowBuckets int) (Limiter, error) {
