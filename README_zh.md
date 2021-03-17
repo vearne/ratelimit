@@ -113,7 +113,7 @@ func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Durat
 
 #### 2.4 滑动时间窗口
 ```
-NewSlideTimeWindowLimiter(throught int, duration time.Duration, windowBuckets int) (Limiter, error)
+NewSlideTimeWindowLimiter(throughput int, duration time.Duration, windowBuckets int) (Limiter, error)
 ```
 
 |参数|说明|

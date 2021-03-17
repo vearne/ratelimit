@@ -6,18 +6,18 @@ import (
 )
 
 type SlideTimeWindowLimiter struct {
-	sync.Mutex
-	buckets           []int
-	lastUpdateTime    time.Time
-	durationPerBucket time.Duration
-	throught          int
-	duration          time.Duration
+	throughput        int
 	windowBuckets     int
+	duration          time.Duration
+	durationPerBucket time.Duration
+	sync.Mutex
+	lastUpdateTime time.Time
+	buckets        []int
 }
 
-func NewSlideTimeWindowLimiter(throught int, duration time.Duration, windowBuckets int) (Limiter, error) {
+func NewSlideTimeWindowLimiter(throughput int, duration time.Duration, windowBuckets int) (Limiter, error) {
 	s := SlideTimeWindowLimiter{buckets: make([]int, windowBuckets)}
-	s.throught = throught
+	s.throughput = throughput
 	s.durationPerBucket = duration / time.Duration(windowBuckets)
 	s.duration = duration
 	s.lastUpdateTime = time.Now()
@@ -45,7 +45,7 @@ func (s *SlideTimeWindowLimiter) Take() (bool, error) {
 			s.buckets[i] = 0
 		}
 	}
-	if s.throught-s.Count() > 0 {
+	if s.throughput-s.Count() > 0 {
 		s.buckets[nowBucketIndex]++
 		s.lastUpdateTime = time.Now()
 		return true, nil

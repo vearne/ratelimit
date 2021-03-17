@@ -11,15 +11,14 @@ type Limiter interface {
 }
 
 type BaseRateLimiter struct {
-	sync.Mutex
-	redisClient redis.Cmdable
 	scriptSHA1  string
 	key         string
+	redisClient redis.Cmdable
+	sync.Mutex
 }
 
 type CounterLimiter struct {
 	BaseRateLimiter
-
 	duration   time.Duration
 	throughput int
 	batchSize  int
