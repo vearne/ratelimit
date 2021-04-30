@@ -11,7 +11,7 @@ before_script:
 
 script:
   # run a bunch of code checkers/linters in parallel
-  - rm -rf example && golangci-lint run 
+  - rm -rf example && golangci-lint run --modules-download-mode=mod
 
 
 
