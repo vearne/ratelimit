@@ -1,5 +1,5 @@
 # 基于redis的分布式限频库
-![travis-ci](https://www.travis-ci.org/vearne/ratelimit.svg?branch=master)
+![travis-ci](https://travis-ci.com/vearne/ratelimit.svg?branch=master)
 
 ---
 
