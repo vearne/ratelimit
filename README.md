@@ -1,5 +1,5 @@
 # Distributed rate-limit library based on Redis
-![travis-ci](https://travis-ci.com/vearne/ratelimit.svg?branch=master)
+[![golang-ci](https://github.com/vearne/ratelimit/actions/workflows/golang-ci.yml/badge.svg)](https://github.com/vearne/ratelimit/actions/workflows/golang-ci.yml)
 
 ---
 
