@@ -1,7 +1,8 @@
 package ratelimit
 
 import (
-	"github.com/go-redis/redis"
+	"context"
+	"github.com/go-redis/redis/v8"
 	"sync"
 	"time"
 )
@@ -36,8 +37,10 @@ func (r *CounterLimiter) Take() (bool, error) {
 		return true, nil
 	}
 
+	bgCtx := context.Background()
 	// 2. try to get from redis
 	x, err := r.redisClient.EvalSha(
+		bgCtx,
 		r.scriptSHA1,
 		[]string{r.key},
 		int(r.duration/time.Microsecond),
@@ -81,8 +84,10 @@ func (r *TokenBucketLimiter) Take() (bool, error) {
 		return true, nil
 	}
 
+	bgCtx := context.Background()
 	// 2. try to get from redis
 	x, err := r.redisClient.EvalSha(
+		bgCtx,
 		r.scriptSHA1,
 		[]string{r.key},
 		r.throughputPerSec,
@@ -115,8 +120,10 @@ type LeakyBucketLimiter struct {
 }
 
 func (r *LeakyBucketLimiter) Take() (bool, error) {
+	bgCtx := context.Background()
 	// try to get from redis
 	x, err := r.redisClient.EvalSha(
+		bgCtx,
 		r.scriptSHA1,
 		[]string{r.key},
 		int(r.interval/time.Microsecond),

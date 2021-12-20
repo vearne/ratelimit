@@ -1,19 +1,21 @@
 package ratelimit
 
 import (
+	"context"
 	"crypto/sha1"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Duration,
 	throughput int,
 	batchSize int) (Limiter, error) {
 
-	_, err := client.Ping().Result()
+	bgCtx := context.Background()
+	_, err := client.Ping(bgCtx).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -41,8 +43,8 @@ func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Durat
 		N:               0,
 	}
 
-	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
-		r.redisClient.ScriptLoad(script).Val()
+	if !r.redisClient.ScriptExists(bgCtx, r.scriptSHA1).Val()[0] {
+		r.redisClient.ScriptLoad(bgCtx, script).Val()
 	}
 
 	return &r, nil
@@ -52,7 +54,8 @@ func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.D
 	throughput int, maxCapacity int,
 	batchSize int) (Limiter, error) {
 
-	_, err := client.Ping().Result()
+	bgCtx := context.Background()
+	_, err := client.Ping(bgCtx).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +83,8 @@ func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.D
 		N:                0,
 	}
 
-	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
-		r.redisClient.ScriptLoad(script).Val()
+	if !r.redisClient.ScriptExists(bgCtx, r.scriptSHA1).Val()[0] {
+		r.redisClient.ScriptLoad(bgCtx, script).Val()
 	}
 
 	return &r, nil
@@ -90,7 +93,8 @@ func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.D
 func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Duration,
 	throughput int) (Limiter, error) {
 
-	_, err := client.Ping().Result()
+	bgCtx := context.Background()
+	_, err := client.Ping(bgCtx).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +115,8 @@ func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Durat
 		interval:        duration / time.Duration(throughput),
 	}
 
-	if !r.redisClient.ScriptExists(r.scriptSHA1).Val()[0] {
-		r.redisClient.ScriptLoad(script).Val()
+	if !r.redisClient.ScriptExists(bgCtx, r.scriptSHA1).Val()[0] {
+		r.redisClient.ScriptLoad(bgCtx, script).Val()
 	}
 
 	return &r, nil
