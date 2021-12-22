@@ -187,6 +187,6 @@ The development of the module was inspired by the Reference 1.
 
 
 ### Thanks
-[![jetbrains](img/jetbrains.svg)](https://www.jetbrains.com/?from=vearne)
+[![jetbrains](img/jetbrains.svg)](https://www.jetbrains.com/community/opensource/#support)
 
 
