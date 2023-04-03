@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+//nolint:govet
 type CounterLimiter struct {
 	BaseRateLimiter
 	duration   time.Duration

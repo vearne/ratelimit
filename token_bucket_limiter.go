@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+//nolint:govet
 type TokenBucketLimiter struct {
 	BaseRateLimiter
 
