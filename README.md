@@ -123,23 +123,35 @@ NewSlideTimeWindowLimiter(throught int, duration time.Duration, windowBuckets in
 
 Note: This limiter is based on memory and does not rely on Redis, so it may not be used in distributed frequency limiting scenarios.
 
-#### Complete example
+### example
+[more example](https://github.com/vearne/ratelimit/tree/master/example)
 ```
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/vearne/ratelimit"
 	"math/rand"
 	"sync"
 	"time"
 )
 
-func consume(r *ratelimit.RedisRateLimiter, group *sync.WaitGroup) {
+func consume(r ratelimit.Limiter, group *sync.WaitGroup,
+	c *ratelimit.Counter, targetCount int) {
+	defer group.Done()
 	for {
-		if r.Take() {
-			group.Done()
+		ok, err := r.Take(context.Background())
+		if err != nil {
+			ok = true
+			fmt.Println("error", err)
+		}
+		if ok {
+			value := c.Incr()
+			if value >= targetCount {
+				break
+			}
 		} else {
 			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Millisecond)
 		}
@@ -148,32 +160,36 @@ func consume(r *ratelimit.RedisRateLimiter, group *sync.WaitGroup) {
 
 func main() {
 	client := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-		Password: "xxxxx", // password set
-		DB: 0, // use default DB
+		Addr:     "localhost:6379",
+		Password: "xxeQl*@nFE", // password set
+		DB:       0,            // use default DB
 	})
 
-	limiter, _ := ratelimit.NewRedisRateLimiter(client,
-		"push",
-		1*time.Second,
-		500,
-		10,
-		//ratelimit.CounterAlg,
-		ratelimit.TokenBucketAlg,
-	)
+	limiter, err := ratelimit.NewTokenBucketRateLimiter(client, "key:token",
+		time.Second,
+		100,
+		5,
+		2)
+
+	if err != nil {
+		fmt.Println("error", err)
+		return
+	}
 
 	var wg sync.WaitGroup
-	total := 5000
-	wg.Add(total)
+	total := 500
+	counter := ratelimit.NewCounter()
 	start := time.Now()
 	for i := 0; i < 100; i++ {
-		go consume(limiter, &wg)
+		wg.Add(1)
+		go consume(limiter, &wg, counter, total)
 	}
 	wg.Wait()
 	cost := time.Since(start)
 	fmt.Println("cost", time.Since(start), "rate", float64(total)/cost.Seconds())
 }
 ```
+
 ### Dependency
 [go-redis/redis](https://github.com/go-redis/redis)
 

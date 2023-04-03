@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/vearne/ratelimit"
 	"math/rand"
@@ -8,20 +9,19 @@ import (
 	"time"
 )
 
-
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
-	c * ratelimit.Counter, targetCount int) {
+	c *ratelimit.Counter, targetCount int) {
 	group.Add(1)
 	defer group.Done()
 	for {
-		ok, err := r.Take()
+		ok, err := r.Take(context.Background())
 		if err != nil {
 			ok = true
 			fmt.Println("error", err)
 		}
 		if ok {
-			value := c.Incre()
-			if value >= targetCount{
+			value := c.Incr()
+			if value >= targetCount {
 				break
 			}
 		} else {
