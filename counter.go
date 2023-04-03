@@ -12,7 +12,7 @@ func NewCounter() *Counter {
 	return &c
 }
 
-func (c *Counter) Incre() int {
+func (c *Counter) Incr() int {
 	c.Lock()
 	defer c.Unlock()
 	c.x++

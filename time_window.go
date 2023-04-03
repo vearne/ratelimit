@@ -1,11 +1,12 @@
 package ratelimit
 
 import (
+	"context"
 	"sync"
 	"time"
 )
 
-//nolint: govet
+// nolint: govet
 type SlideTimeWindowLimiter struct {
 	sync.Mutex
 
@@ -31,7 +32,7 @@ func NewSlideTimeWindowLimiter(throughput int, duration time.Duration, windowBuc
 	return &s, nil
 }
 
-func (s *SlideTimeWindowLimiter) Take() (bool, error) {
+func (s *SlideTimeWindowLimiter) Take(ctx context.Context) (bool, error) {
 	s.Lock()
 	defer s.Unlock()
 
