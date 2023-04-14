@@ -110,7 +110,6 @@ func (r *CounterLimiter) Wait(ctx context.Context) (err error) {
 			}
 		}
 	}
-	return nil
 }
 
 func (r *CounterLimiter) Take(ctx context.Context) (bool, error) {

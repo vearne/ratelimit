@@ -77,7 +77,6 @@ func (r *SlideTimeWindowLimiter) Wait(ctx context.Context) (err error) {
 			}
 		}
 	}
-	return nil
 }
 
 func (s *SlideTimeWindowLimiter) Take(ctx context.Context) (bool, error) {
