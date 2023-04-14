@@ -101,7 +101,6 @@ func (r *TokenBucketLimiter) Wait(ctx context.Context) (err error) {
 			}
 		}
 	}
-	return nil
 }
 
 func (r *TokenBucketLimiter) tryTakeFromLocal() bool {
