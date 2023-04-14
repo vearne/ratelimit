@@ -2,6 +2,9 @@ package ratelimit
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	slog "github.com/vearne/simplelog"
 	"sync"
 	"time"
 )
@@ -9,6 +12,8 @@ import (
 // nolint: govet
 type SlideTimeWindowLimiter struct {
 	sync.Mutex
+
+	BaseRateLimiter
 
 	duration      time.Duration
 	throughput    int
@@ -26,10 +31,53 @@ func NewSlideTimeWindowLimiter(throughput int, duration time.Duration, windowBuc
 	s.duration = duration
 	s.lastUpdateTime = time.Now()
 	s.windowBuckets = windowBuckets
+	s.interval = duration / time.Duration(throughput)
 	for i := 0; i < windowBuckets; i++ {
 		s.buckets[i] = 0
 	}
 	return &s, nil
+}
+
+// wait until take a token or timeout
+func (r *SlideTimeWindowLimiter) Wait(ctx context.Context) (err error) {
+	ok, err := r.Take(ctx)
+	slog.Debug("r.Take")
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
+
+	deadline, ok := ctx.Deadline()
+	minWaitTime := r.interval
+	fmt.Println("----1-----")
+	slog.Debug("minWaitTime:%v", minWaitTime)
+	if ok {
+		if deadline.Before(time.Now().Add(minWaitTime)) {
+			slog.Debug("can't get token before %v", deadline)
+			return fmt.Errorf("can't get token before %v", deadline)
+		}
+	}
+
+	for {
+		slog.Debug("---for---")
+		timer := time.NewTimer(minWaitTime)
+		select {
+		// 执行的代码
+		case <-ctx.Done():
+			return errors.New("context timeout")
+		case <-timer.C:
+			ok, err := r.Take(ctx)
+			if err != nil {
+				return err
+			}
+			if ok {
+				return nil
+			}
+		}
+	}
+	return nil
 }
 
 func (s *SlideTimeWindowLimiter) Take(ctx context.Context) (bool, error) {

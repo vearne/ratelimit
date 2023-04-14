@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-func consume(r ratelimit.Limiter, wg *sync.WaitGroup,
+func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 	c *ratelimit.Counter, targetCount int) {
-	defer wg.Done()
+	defer group.Done()
 	for {
 		ok, err := r.Take(context.Background())
 		if err != nil {
@@ -37,12 +37,11 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewCounterRateLimiter(client,
-		"key:count",
+	limiter, err := ratelimit.NewTokenBucketRateLimiter(context.Background(), client, "key:token",
 		time.Second,
 		100,
-		2,
-	)
+		5,
+		2)
 
 	if err != nil {
 		fmt.Println("error", err)

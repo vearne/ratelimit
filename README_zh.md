@@ -61,20 +61,20 @@ go get github.com/vearne/ratelimit
 
 ### 2. 创建限频器
 ```
-    limiter, err := ratelimit.NewTokenBucketRateLimiter(client, 
-            "push", time.Second, 200, 20, 5)
+    limiter, err := ratelimit.NewTokenBucketRateLimiter(
+            ctx, client, "push", time.Second, 200, 20, 5)
 ```
 表示允许每秒操作200次
 ```
 	limiter, err := ratelimit.NewTokenBucketRateLimiter(client, 
-	        "push", time.Minute, 200, 20, 5)
+	        ctx, "push", time.Minute, 200, 20, 5)
 ```
 表示允许每分钟操作200次
 
 支持多种算法
 #### 2.1 计数器算法
 ```
-func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Duration,
+func NewCounterRateLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
 	throughput int,
 	batchSize int) (Limiter, error)
 ```
@@ -87,7 +87,9 @@ func NewCounterRateLimiter(client redis.Cmdable, key string, duration time.Durat
 
 #### 2.2 令牌桶算法
 ```
-func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.Duration,
+func NewTokenBucketRateLimiter(
+    ctx context.Context, 
+    client redis.Cmdable, key string, duration time.Duration,
 	throughput int, maxCapacity int,
 	batchSize int) (Limiter, error)
 ```
@@ -101,7 +103,9 @@ func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.D
 
 #### 2.3 漏桶算法
 ```
-func NewLeakyBucketLimiter(client redis.Cmdable, key string, duration time.Duration,
+func NewLeakyBucketLimiter(
+    ctx context.Context, 
+    client redis.Cmdable, key string, duration time.Duration,
 	throughput int) (Limiter, error)
 ```
 
@@ -134,7 +138,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/vearne/ratelimit"
-	"math/rand"
+	slog "github.com/vearne/simplelog"
 	"sync"
 	"time"
 )
@@ -142,19 +146,21 @@ import (
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 	c *ratelimit.Counter, targetCount int) {
 	defer group.Done()
+	var ok bool
 	for {
-		ok, err := r.Take(context.Background())
+		ok = true
+		err := r.Wait(context.Background())
+		slog.Debug("r.Wait:%v", err)
 		if err != nil {
-			ok = true
-			fmt.Println("error", err)
+			ok = false
+			slog.Error("error:%v", err)
 		}
 		if ok {
 			value := c.Incr()
+			slog.Debug("---value--:%v", value)
 			if value >= targetCount {
 				break
 			}
-		} else {
-			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Millisecond)
 		}
 	}
 }
@@ -166,9 +172,12 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(client, "key:token",
+	limiter, err := ratelimit.NewTokenBucketRateLimiter(
+		context.Background(),
+		client,
+		"key:token",
 		time.Second,
-		100,
+		10,
 		5,
 		2)
 
@@ -178,10 +187,10 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	total := 500
+	total := 50
 	counter := ratelimit.NewCounter()
 	start := time.Now()
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go consume(limiter, &wg, counter, total)
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	slog "github.com/vearne/simplelog"
 	"golang.org/x/sync/singleflight"
 	"time"
 )
@@ -22,12 +23,11 @@ type TokenBucketLimiter struct {
 	g singleflight.Group
 }
 
-func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.Duration,
+func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
 	throughput int, maxCapacity int,
 	batchSize int) (Limiter, error) {
 
-	bgCtx := context.Background()
-	_, err := client.Ping(bgCtx).Result()
+	_, err := client.Ping(ctx).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -54,12 +54,54 @@ func NewTokenBucketRateLimiter(client redis.Cmdable, key string, duration time.D
 		batchSize:        batchSize,
 		N:                0,
 	}
+	r.interval = duration / time.Duration(throughput)
 
-	if !r.redisClient.ScriptExists(bgCtx, r.scriptSHA1).Val()[0] {
-		r.redisClient.ScriptLoad(bgCtx, script).Val()
+	if !r.redisClient.ScriptExists(ctx, r.scriptSHA1).Val()[0] {
+		r.redisClient.ScriptLoad(ctx, script).Val()
 	}
 
 	return &r, nil
+}
+
+// wait until take a token or timeout
+func (r *TokenBucketLimiter) Wait(ctx context.Context) (err error) {
+	ok, err := r.Take(ctx)
+	slog.Debug("r.Take")
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
+
+	deadline, ok := ctx.Deadline()
+	minWaitTime := r.interval
+	slog.Debug("minWaitTime:%v", minWaitTime)
+	if ok {
+		if deadline.Before(time.Now().Add(minWaitTime)) {
+			slog.Debug("can't get token before %v", deadline)
+			return fmt.Errorf("can't get token before %v", deadline)
+		}
+	}
+
+	for {
+		slog.Debug("---for---")
+		timer := time.NewTimer(minWaitTime)
+		select {
+		// 执行的代码
+		case <-ctx.Done():
+			return errors.New("context timeout")
+		case <-timer.C:
+			ok, err := r.Take(ctx)
+			if err != nil {
+				return err
+			}
+			if ok {
+				return nil
+			}
+		}
+	}
+	return nil
 }
 
 func (r *TokenBucketLimiter) tryTakeFromLocal() bool {
