@@ -87,7 +87,6 @@ func (r *LeakyBucketLimiter) Wait(ctx context.Context) (err error) {
 			}
 		}
 	}
-	return nil
 }
 
 func (r *LeakyBucketLimiter) Take(ctx context.Context) (bool, error) {
