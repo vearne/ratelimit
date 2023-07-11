@@ -61,7 +61,6 @@ func (r *LeakyBucketLimiter) Wait(ctx context.Context) (err error) {
 
 	deadline, ok := ctx.Deadline()
 	minWaitTime := r.interval
-	fmt.Println("----1-----")
 	slog.Debug("minWaitTime:%v", minWaitTime)
 	if ok {
 		if deadline.Before(time.Now().Add(minWaitTime)) {
