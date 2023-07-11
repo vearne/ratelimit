@@ -70,7 +70,7 @@ func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key st
 	}
 
 	// 2x throughput
-	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(r.throughputPerSec*2), batchSize)
+	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(r.throughputPerSec*2), maxCapacity)
 	return &r, nil
 }
 
