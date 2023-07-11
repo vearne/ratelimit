@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	slog "github.com/vearne/simplelog"
+	"golang.org/x/time/rate"
 	"time"
 )
 
@@ -15,6 +16,13 @@ type LeakyBucketLimiter struct {
 
 	// For interval between requests,the smallest unit of duration is one microseconds.
 	interval time.Duration
+
+	/*
+		If the traffic is too large, the limiter will request Redis frequently.
+		To avoid this situation, the frequency of accessing Redis will be limited.
+	*/
+	AntiDDoS        bool
+	antiDDoSLimiter *rate.Limiter
 }
 
 func NewLeakyBucketLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
@@ -39,13 +47,22 @@ func NewLeakyBucketLimiter(ctx context.Context, client redis.Cmdable, key string
 	r := LeakyBucketLimiter{
 		BaseRateLimiter: BaseRateLimiter{redisClient: client, scriptSHA1: scriptSHA1, key: key},
 		interval:        duration / time.Duration(throughput),
+		AntiDDoS:        true,
 	}
 
 	if !r.redisClient.ScriptExists(ctx, r.scriptSHA1).Val()[0] {
 		r.redisClient.ScriptLoad(ctx, script).Val()
 	}
 
+	// 2x throughput
+	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(float64(throughput)/float64(duration/time.Second)*2), 5)
+
 	return &r, nil
+}
+
+// just for test
+func (r *LeakyBucketLimiter) WithAntiDDos(antiDDoS bool) {
+	r.AntiDDoS = antiDDoS
 }
 
 // wait until take a token or timeout
@@ -89,7 +106,14 @@ func (r *LeakyBucketLimiter) Wait(ctx context.Context) (err error) {
 }
 
 func (r *LeakyBucketLimiter) Take(ctx context.Context) (bool, error) {
-	// try to get from redis
+	// 0. Anti DDoS
+	if r.AntiDDoS {
+		if !r.antiDDoSLimiter.Allow() {
+			return false, nil
+		}
+	}
+
+	// 1. try to get from redis
 	x, err := r.redisClient.EvalSha(
 		ctx,
 		r.scriptSHA1,
