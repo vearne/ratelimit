@@ -25,12 +25,12 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 				break
 			}
 		} else {
-			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(2)+1) * time.Millisecond)
 		}
 	}
 }
 func main() {
-	limiter, _ := ratelimit.NewSlideTimeWindowLimiter(100, time.Second, 100)
+	limiter, _ := ratelimit.NewSlideTimeWindowLimiter(100, time.Second, 10)
 
 	var wg sync.WaitGroup
 	total := 500

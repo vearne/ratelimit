@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/vearne/ratelimit"
+	slog "github.com/vearne/simplelog"
 	"math/rand"
 	"sync"
 	"time"
@@ -31,6 +32,7 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 }
 
 func main() {
+	slog.SetLevel(slog.DebugLevel)
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "xxeQl*@nFE", // password set
@@ -41,8 +43,8 @@ func main() {
 		time.Second,
 		100,
 		5,
-		2)
-
+		1)
+	
 	if err != nil {
 		fmt.Println("error", err)
 		return

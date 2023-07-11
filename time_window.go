@@ -13,7 +13,7 @@ import (
 type SlideTimeWindowLimiter struct {
 	sync.Mutex
 
-	BaseRateLimiter
+	interval time.Duration
 
 	duration      time.Duration
 	throughput    int
@@ -60,7 +60,6 @@ func (r *SlideTimeWindowLimiter) Wait(ctx context.Context) (err error) {
 	}
 
 	for {
-		slog.Debug("---for---")
 		timer := time.NewTimer(minWaitTime)
 		select {
 		// 执行的代码

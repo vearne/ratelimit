@@ -8,6 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	slog "github.com/vearne/simplelog"
 	"golang.org/x/sync/singleflight"
+	"golang.org/x/time/rate"
 	"time"
 )
 
@@ -21,6 +22,13 @@ type TokenBucketLimiter struct {
 	N                int64
 
 	g singleflight.Group
+
+	/*
+		If the traffic is too large, the limiter will request Redis frequently.
+		To avoid this situation, the frequency of accessing Redis will be limited.
+	*/
+	AntiDDoS        bool
+	antiDDoSLimiter *rate.Limiter
 }
 
 func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
@@ -53,6 +61,7 @@ func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key st
 		maxCapacity:      maxCapacity,
 		batchSize:        batchSize,
 		N:                0,
+		AntiDDoS:         true,
 	}
 	r.interval = duration / time.Duration(throughput)
 
@@ -60,7 +69,14 @@ func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key st
 		r.redisClient.ScriptLoad(ctx, script).Val()
 	}
 
+	// 2x throughput
+	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(r.throughputPerSec*2), batchSize)
 	return &r, nil
+}
+
+// just for test
+func (r *TokenBucketLimiter) WithAntiDDos(antiDDoS bool) {
+	r.AntiDDoS = antiDDoS
 }
 
 // wait until take a token or timeout
@@ -114,6 +130,13 @@ func (r *TokenBucketLimiter) tryTakeFromLocal() bool {
 }
 
 func (r *TokenBucketLimiter) Take(ctx context.Context) (bool, error) {
+	// 0. Anti DDoS
+	if r.AntiDDoS {
+		if !r.antiDDoSLimiter.Allow() {
+			return false, nil
+		}
+	}
+
 	// 1. try to get from local
 	if r.tryTakeFromLocal() {
 		return true, nil

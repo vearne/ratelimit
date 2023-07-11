@@ -8,6 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	slog "github.com/vearne/simplelog"
 	"golang.org/x/sync/singleflight"
+	"golang.org/x/time/rate"
 	"time"
 )
 
@@ -19,6 +20,13 @@ type CounterLimiter struct {
 	batchSize  int
 	N          int64
 	g          singleflight.Group
+
+	/*
+		If the traffic is too large, the limiter will request Redis frequently.
+		To avoid this situation, the frequency of accessing Redis will be limited.
+	*/
+	AntiDDoS        bool
+	antiDDoSLimiter *rate.Limiter
 }
 
 func NewCounterRateLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
@@ -51,6 +59,7 @@ func NewCounterRateLimiter(ctx context.Context, client redis.Cmdable, key string
 		throughput:      throughput,
 		batchSize:       batchSize,
 		N:               0,
+		AntiDDoS:        true,
 	}
 	r.interval = duration / time.Duration(throughput)
 
@@ -58,7 +67,15 @@ func NewCounterRateLimiter(ctx context.Context, client redis.Cmdable, key string
 		r.redisClient.ScriptLoad(ctx, script).Val()
 	}
 
+	// 2x throughput
+	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(float64(throughput)/float64(duration/time.Second)*2), 5)
+
 	return &r, nil
+}
+
+// just for test
+func (r *CounterLimiter) WithAntiDDos(antiDDoS bool) {
+	r.AntiDDoS = antiDDoS
 }
 
 func (r *CounterLimiter) tryTakeFromLocal() bool {
@@ -94,7 +111,6 @@ func (r *CounterLimiter) Wait(ctx context.Context) (err error) {
 	}
 
 	for {
-		slog.Debug("---for---")
 		timer := time.NewTimer(minWaitTime)
 		select {
 		// 执行的代码
@@ -113,6 +129,13 @@ func (r *CounterLimiter) Wait(ctx context.Context) (err error) {
 }
 
 func (r *CounterLimiter) Take(ctx context.Context) (bool, error) {
+	// 0. Anti DDoS
+	if r.AntiDDoS {
+		if !r.antiDDoSLimiter.Allow() {
+			return false, nil
+		}
+	}
+
 	// 1. try to get from local
 	if r.tryTakeFromLocal() {
 		return true, nil
