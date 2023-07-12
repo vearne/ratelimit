@@ -42,9 +42,9 @@ func main() {
 	limiter, err := ratelimit.NewTokenBucketRateLimiter(context.Background(), client, "key:token",
 		time.Second,
 		100,
-		5,
-		1)
-	
+		50,
+		5)
+
 	if err != nil {
 		fmt.Println("error", err)
 		return

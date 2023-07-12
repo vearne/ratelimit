@@ -54,8 +54,8 @@ func NewLeakyBucketLimiter(ctx context.Context, client redis.Cmdable, key string
 		r.redisClient.ScriptLoad(ctx, script).Val()
 	}
 
-	// 2x throughput
-	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(float64(throughput)/float64(duration/time.Second)*2), 5)
+	throughputPerSec := int(float64(throughput) / float64(duration/time.Second))
+	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(throughputPerSec*2), throughputPerSec*2)
 
 	return &r, nil
 }
