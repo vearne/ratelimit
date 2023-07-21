@@ -39,11 +39,20 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
+	//limiter, err := ratelimit.NewTokenBucketRateLimiter(context.Background(), client, "key:token",
+	//	time.Second,
+	//	100,
+	//	50,
+	//	5)
+
 	limiter, err := ratelimit.NewTokenBucketRateLimiter(context.Background(), client, "key:token",
 		time.Second,
 		100,
 		50,
-		5)
+		5,
+		ratelimit.WithEnablePreFetch(true),
+		ratelimit.WithPreFetchCount(10),
+	)
 
 	if err != nil {
 		fmt.Println("error", err)
