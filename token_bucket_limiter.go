@@ -195,10 +195,7 @@ func (r *TokenBucketLimiter) tryPreFetch() bool {
 func (r *TokenBucketLimiter) needFetch() bool {
 	r.Lock()
 	defer r.Unlock()
-	if r.N >= r.PreFetchCount {
-		return false
-	}
-	return true
+	return r.N < r.PreFetchCount
 }
 
 func (r *TokenBucketLimiter) PreFetch() {
