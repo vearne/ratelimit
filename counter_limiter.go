@@ -156,7 +156,7 @@ func (r *CounterLimiter) Take(ctx context.Context) (bool, error) {
 			return 0, err
 		}
 		r.Lock()
-		r.N = x.(int64)
+		r.N += x.(int64)
 		r.Unlock()
 		return r.N, nil
 	})
