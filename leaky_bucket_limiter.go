@@ -5,7 +5,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	slog "github.com/vearne/simplelog"
 	"golang.org/x/time/rate"
 	"time"

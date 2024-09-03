@@ -10,7 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	v8 "github.com/go-redis/redis/v8"
+	v8 "github.com/redis/go-redis/v9"
 )
 
 // MockCmdable is a mock of Cmdable interface.

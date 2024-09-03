@@ -2,7 +2,7 @@ package ratelimit
 
 import (
 	"context"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"sync"
 	"time"
 )
