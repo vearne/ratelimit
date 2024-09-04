@@ -40,7 +40,7 @@ go get github.com/vearne/ratelimit
 ```
 ### Usage
 #### 1. create redis.Client
-with "github.com/go-redis/redis"   
+with "github.com/redis/go-redis"   
 Supports both redis master-slave mode and cluster mode
 ```
 	client := redis.NewClient(&redis.Options{
@@ -132,15 +132,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/vearne/ratelimit"
+	"github.com/vearne/ratelimit/counter"
+	"github.com/vearne/ratelimit/tokenbucket"
 	slog "github.com/vearne/simplelog"
 	"sync"
 	"time"
 )
 
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
-	c *ratelimit.Counter, targetCount int) {
+	c *counter.Counter, targetCount int) {
 	defer group.Done()
 	var ok bool
 	for {
@@ -168,7 +170,7 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(
+	limiter, err := tokenbucket.NewTokenBucketRateLimiter(
 		context.Background(),
 		client,
 		"key:token",
@@ -184,7 +186,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	total := 50
-	counter := ratelimit.NewCounter()
+	counter := counter.NewCounter()
 	start := time.Now()
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
@@ -197,7 +199,7 @@ func main() {
 ```
 
 ### Dependency
-[go-redis/redis](https://github.com/go-redis/redis)
+[redis/go-redis](https://github.com/redis/go-redis)
 
 ### Thanks
 The development of the module was inspired by the Reference 1.

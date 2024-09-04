@@ -1,9 +1,10 @@
-package ratelimit
+package timewindow
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/vearne/ratelimit"
 	slog "github.com/vearne/simplelog"
 	"sync"
 	"time"
@@ -24,7 +25,7 @@ type SlideTimeWindowLimiter struct {
 	buckets           []int
 }
 
-func NewSlideTimeWindowLimiter(throughput int, duration time.Duration, windowBuckets int) (Limiter, error) {
+func NewSlideTimeWindowLimiter(throughput int, duration time.Duration, windowBuckets int) (ratelimit.Limiter, error) {
 	s := SlideTimeWindowLimiter{buckets: make([]int, windowBuckets)}
 	s.throughput = throughput
 	s.durationPerBucket = duration / time.Duration(windowBuckets)

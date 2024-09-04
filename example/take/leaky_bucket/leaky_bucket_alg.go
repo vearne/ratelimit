@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/vearne/ratelimit"
+	"github.com/vearne/ratelimit/counter"
+	"github.com/vearne/ratelimit/leakybucket"
 	"math/rand"
 	"sync"
 	"time"
 )
 
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
-	c *ratelimit.Counter, targetCount int) {
+	c *counter.Counter, targetCount int) {
 	group.Add(1)
 	defer group.Done()
 	for {
@@ -38,7 +40,7 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewLeakyBucketLimiter(context.Background(), client,
+	limiter, err := leakybucket.NewLeakyBucketLimiter(context.Background(), client,
 		"key:leaky",
 		1*time.Second,
 		100,
@@ -51,7 +53,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	total := 500
-	counter := ratelimit.NewCounter()
+	counter := counter.NewCounter()
 	start := time.Now()
 	for i := 0; i < 100; i++ {
 		go consume(limiter, &wg, counter, total)

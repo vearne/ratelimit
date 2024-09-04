@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"github.com/vearne/ratelimit"
+	"github.com/redis/go-redis/v9"
+	"github.com/vearne/ratelimit/tokenbucket"
 	slog "github.com/vearne/simplelog"
 	"time"
 )
@@ -16,7 +16,7 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(
+	limiter, err := tokenbucket.NewTokenBucketRateLimiter(
 		context.Background(),
 		client,
 		"key:token",

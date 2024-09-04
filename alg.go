@@ -37,7 +37,7 @@ return increment
 	key ->
 		token_count -> {token_count}
 		updateTime -> {lastUpdateTime}* 1000000  +  {microsecond}
- */
+*/
 
 const TokenBucketScript = `
 local bucket = KEYS[1]
@@ -85,14 +85,12 @@ end
 return count
 `
 
-
 /*
-	key Type:  string
+		key Type:  string
 
-    // updateTime
-	key -> {lastUpdateTime}* 1000000  +  {microsecond}
-
- */
+	    // updateTime
+		key -> {lastUpdateTime}* 1000000  +  {microsecond}
+*/
 const LeakyBucketScript = `
 local bucket = KEYS[1]
 local interval = tonumber(ARGV[1])
@@ -117,15 +115,13 @@ end
 return count
 `
 
-
 var (
-	algMap map[int]string
+	AlgMap map[int]string
 )
 
-
-func init(){
-	algMap = make(map[int]string)
-	algMap[CounterAlg] = counterScript
-	algMap[TokenBucketAlg] = TokenBucketScript
-	algMap[LeakyBucketAlg] = LeakyBucketScript
+func init() {
+	AlgMap = make(map[int]string)
+	AlgMap[CounterAlg] = counterScript
+	AlgMap[TokenBucketAlg] = TokenBucketScript
+	AlgMap[LeakyBucketAlg] = LeakyBucketScript
 }
