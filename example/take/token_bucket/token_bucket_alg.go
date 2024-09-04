@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/vearne/ratelimit"
-	slog "github.com/vearne/simplelog"
+	"github.com/vearne/ratelimit/counter"
+	"github.com/vearne/ratelimit/tokenbucket"
 	"math/rand"
 	"sync"
 	"time"
 )
 
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
-	c *ratelimit.Counter, targetCount int) {
+	c *counter.Counter, targetCount int) {
 	defer group.Done()
 	for {
 		ok, err := r.Take(context.Background())
@@ -32,26 +33,20 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 }
 
 func main() {
-	slog.SetLevel(slog.DebugLevel)
+	//slog.SetLevel(slog.DebugLevel)
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "xxeQl*@nFE", // password set
 		DB:       0,            // use default DB
 	})
 
-	//limiter, err := ratelimit.NewTokenBucketRateLimiter(context.Background(), client, "key:token",
-	//	time.Second,
-	//	100,
-	//	50,
-	//	5)
-
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(context.Background(), client, "key:token",
+	limiter, err := tokenbucket.NewTokenBucketRateLimiter(context.Background(), client, "key:token",
 		time.Second,
 		100,
 		50,
 		5,
-		ratelimit.WithEnablePreFetch(true),
-		ratelimit.WithPreFetchCount(10),
+		tokenbucket.WithEnablePreFetch(true),
+		tokenbucket.WithPreFetchCount(10),
 	)
 
 	if err != nil {
@@ -61,7 +56,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	total := 500
-	counter := ratelimit.NewCounter()
+	counter := counter.NewCounter()
 	start := time.Now()
 	for i := 0; i < 100; i++ {
 		wg.Add(1)

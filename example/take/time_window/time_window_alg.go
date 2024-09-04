@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/vearne/ratelimit"
+	"github.com/vearne/ratelimit/counter"
+	"github.com/vearne/ratelimit/timewindow"
 	"math/rand"
 	"sync"
 	"time"
 )
 
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
-	c *ratelimit.Counter, targetCount int) {
+	c *counter.Counter, targetCount int) {
 	group.Add(1)
 	defer group.Done()
 	for {
@@ -30,11 +32,11 @@ func consume(r ratelimit.Limiter, group *sync.WaitGroup,
 	}
 }
 func main() {
-	limiter, _ := ratelimit.NewSlideTimeWindowLimiter(100, time.Second, 10)
+	limiter, _ := timewindow.NewSlideTimeWindowLimiter(100, time.Second, 10)
 
 	var wg sync.WaitGroup
 	total := 500
-	counter := ratelimit.NewCounter()
+	counter := counter.NewCounter()
 	start := time.Now()
 	for i := 0; i < 100; i++ {
 		go consume(limiter, &wg, counter, total)

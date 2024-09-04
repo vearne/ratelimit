@@ -1,4 +1,4 @@
-package ratelimit
+package counter
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"github.com/vearne/ratelimit"
 	slog "github.com/vearne/simplelog"
 	"golang.org/x/sync/singleflight"
 	"golang.org/x/time/rate"
@@ -14,7 +15,7 @@ import (
 
 //nolint:govet
 type CounterLimiter struct {
-	BaseRateLimiter
+	ratelimit.BaseRateLimiter
 	duration   time.Duration
 	throughput int
 	batchSize  int
@@ -29,9 +30,11 @@ type CounterLimiter struct {
 	antiDDoSLimiter *rate.Limiter
 }
 
+type Option func(*CounterLimiter)
+
 func NewCounterRateLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
 	throughput int,
-	batchSize int) (Limiter, error) {
+	batchSize int, opts ...Option) (ratelimit.Limiter, error) {
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
@@ -50,23 +53,35 @@ func NewCounterRateLimiter(ctx context.Context, client redis.Cmdable, key string
 		return nil, errors.New("batchSize must greater than 0")
 	}
 
-	script := algMap[CounterAlg]
+	script := ratelimit.AlgMap[ratelimit.CounterAlg]
 	scriptSHA1 := fmt.Sprintf("%x", sha1.Sum([]byte(script)))
 
 	r := CounterLimiter{
-		BaseRateLimiter: BaseRateLimiter{redisClient: client, scriptSHA1: scriptSHA1, key: key},
+		BaseRateLimiter: ratelimit.BaseRateLimiter{RedisClient: client, ScriptSHA1: scriptSHA1, Key: key},
 		duration:        duration,
 		throughput:      throughput,
 		batchSize:       batchSize,
 		N:               0,
 		AntiDDoS:        true,
 	}
-	r.interval = duration / time.Duration(throughput)
+	r.Interval = duration / time.Duration(throughput)
 
-	if !r.redisClient.ScriptExists(ctx, r.scriptSHA1).Val()[0] {
-		r.redisClient.ScriptLoad(ctx, script).Val()
+	// Loop through each option
+	for _, opt := range opts {
+		// Call the option giving the instantiated
+		opt(&r)
 	}
 
+	values, err := r.RedisClient.ScriptExists(ctx, r.ScriptSHA1).Result()
+	if err != nil {
+		return nil, err
+	}
+	if !values[0] {
+		_, err = r.RedisClient.ScriptLoad(ctx, script).Result()
+		if err != nil {
+			return nil, err
+		}
+	}
 	// 2x throughput
 	throughputPerSec := int(float64(throughput) / float64(duration/time.Second))
 	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(throughputPerSec*2), throughputPerSec*2)
@@ -75,8 +90,10 @@ func NewCounterRateLimiter(ctx context.Context, client redis.Cmdable, key string
 }
 
 // just for test
-func (r *CounterLimiter) WithAntiDDos(antiDDoS bool) {
-	r.AntiDDoS = antiDDoS
+func WithAntiDDos(antiDDoS bool) Option {
+	return func(r *CounterLimiter) {
+		r.AntiDDoS = antiDDoS
+	}
 }
 
 func (r *CounterLimiter) tryTakeFromLocal() bool {
@@ -101,7 +118,7 @@ func (r *CounterLimiter) Wait(ctx context.Context) (err error) {
 	}
 
 	deadline, ok := ctx.Deadline()
-	minWaitTime := r.interval
+	minWaitTime := r.Interval
 
 	slog.Debug("minWaitTime:%v", minWaitTime)
 	if ok {
@@ -143,11 +160,11 @@ func (r *CounterLimiter) Take(ctx context.Context) (bool, error) {
 	}
 
 	// 2. try to get from redis
-	_, err, _ := r.g.Do(r.key, func() (interface{}, error) {
-		x, err := r.redisClient.EvalSha(
+	_, err, _ := r.g.Do(r.Key, func() (interface{}, error) {
+		x, err := r.RedisClient.EvalSha(
 			ctx,
-			r.scriptSHA1,
-			[]string{r.key},
+			r.ScriptSHA1,
+			[]string{r.Key},
 			int(r.duration/time.Microsecond),
 			r.throughput,
 			r.batchSize,

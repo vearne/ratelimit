@@ -42,7 +42,7 @@ go get github.com/vearne/ratelimit
 ```
 ## 用法
 ### 1. 创建 redis.Client
-依赖 "github.com/go-redis/redis"    
+依赖 "github.com/redis/go-redis"    
 同时支持redis 主从模式和cluster模式
 ```
 	client := redis.NewClient(&redis.Options{
@@ -138,13 +138,15 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/vearne/ratelimit"
+	"github.com/vearne/ratelimit/counter"
+	"github.com/vearne/ratelimit/tokenbucket"
 	slog "github.com/vearne/simplelog"
 	"sync"
 	"time"
 )
 
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
-	c *ratelimit.Counter, targetCount int) {
+	c *counter.Counter, targetCount int) {
 	defer group.Done()
 	var ok bool
 	for {
@@ -172,7 +174,7 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(
+	limiter, err := tokenbucket.NewTokenBucketRateLimiter(
 		context.Background(),
 		client,
 		"key:token",
@@ -188,7 +190,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	total := 50
-	counter := ratelimit.NewCounter()
+	counter := counter.NewCounter()
 	start := time.Now()
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
@@ -200,7 +202,7 @@ func main() {
 }
 ```
 ### 依赖
-[go-redis/redis](https://github.com/go-redis/redis)
+[redis/go-redis](https://github.com/redis/go-redis)
 
 ### 致谢
 模块的开发受到了资料1的启发，在此表示感谢

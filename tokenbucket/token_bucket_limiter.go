@@ -1,4 +1,4 @@
-package ratelimit
+package tokenbucket
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"github.com/vearne/ratelimit"
 	slog "github.com/vearne/simplelog"
 	"golang.org/x/sync/singleflight"
 	"golang.org/x/time/rate"
@@ -14,7 +15,7 @@ import (
 
 //nolint:govet
 type TokenBucketLimiter struct {
-	BaseRateLimiter
+	ratelimit.BaseRateLimiter
 
 	throughputPerSec float64
 	batchSize        int
@@ -40,7 +41,7 @@ type Option func(*TokenBucketLimiter)
 
 func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
 	throughput int, maxCapacity int,
-	batchSize int, opts ...Option) (Limiter, error) {
+	batchSize int, opts ...Option) (ratelimit.Limiter, error) {
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
@@ -59,11 +60,11 @@ func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key st
 		return nil, errors.New("batchSize must greater than 0")
 	}
 
-	script := algMap[TokenBucketAlg]
+	script := ratelimit.AlgMap[ratelimit.TokenBucketAlg]
 	scriptSHA1 := fmt.Sprintf("%x", sha1.Sum([]byte(script)))
 
 	r := TokenBucketLimiter{
-		BaseRateLimiter:  BaseRateLimiter{redisClient: client, scriptSHA1: scriptSHA1, key: key},
+		BaseRateLimiter:  ratelimit.BaseRateLimiter{RedisClient: client, ScriptSHA1: scriptSHA1, Key: key},
 		throughputPerSec: float64(throughput) / float64(duration/time.Second),
 		maxCapacity:      maxCapacity,
 		batchSize:        batchSize,
@@ -72,19 +73,28 @@ func NewTokenBucketRateLimiter(ctx context.Context, client redis.Cmdable, key st
 		EnablePreFetch:   false, // default value
 		PreFetchCount:    5,     // default value
 	}
-	r.interval = duration / time.Duration(throughput)
+	r.Interval = duration / time.Duration(throughput)
 	// Loop through each option
 	for _, opt := range opts {
 		// Call the option giving the instantiated
 		opt(&r)
 	}
 
-	if !r.redisClient.ScriptExists(ctx, r.scriptSHA1).Val()[0] {
-		r.redisClient.ScriptLoad(ctx, script).Val()
+	values, err := r.RedisClient.ScriptExists(ctx, r.ScriptSHA1).Result()
+	if err != nil {
+		return nil, err
+	}
+	if !values[0] {
+		_, err = r.RedisClient.ScriptLoad(ctx, script).Result()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 2x throughput
-	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(r.throughputPerSec*2), maxCapacity*2)
+	if r.AntiDDoS {
+		r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(r.throughputPerSec*2), maxCapacity*2)
+	}
 
 	// Get the token before actually needing to use it
 	if r.EnablePreFetch {
@@ -123,7 +133,7 @@ func (r *TokenBucketLimiter) Wait(ctx context.Context) (err error) {
 	}
 
 	deadline, ok := ctx.Deadline()
-	minWaitTime := r.interval
+	minWaitTime := r.Interval
 	slog.Debug("minWaitTime:%v", minWaitTime)
 	if ok {
 		if deadline.Before(time.Now().Add(minWaitTime)) {
@@ -167,11 +177,11 @@ func (r *TokenBucketLimiter) tryPreFetch() bool {
 	if r.needFetch() {
 		// try to get from redis
 		// single flight
-		_, err, _ := r.g.Do(r.key, func() (interface{}, error) {
-			x, err := r.redisClient.EvalSha(
+		_, err, _ := r.g.Do(r.Key, func() (interface{}, error) {
+			x, err := r.RedisClient.EvalSha(
 				context.Background(),
-				r.scriptSHA1,
-				[]string{r.key},
+				r.ScriptSHA1,
+				[]string{r.Key},
 				r.throughputPerSec,
 				r.batchSize,
 				r.maxCapacity,
@@ -221,11 +231,11 @@ func (r *TokenBucketLimiter) Take(ctx context.Context) (bool, error) {
 
 	// 2. try to get from redis
 	// single flight
-	_, err, _ := r.g.Do(r.key, func() (interface{}, error) {
-		x, err := r.redisClient.EvalSha(
+	_, err, _ := r.g.Do(r.Key, func() (interface{}, error) {
+		x, err := r.RedisClient.EvalSha(
 			ctx,
-			r.scriptSHA1,
-			[]string{r.key},
+			r.ScriptSHA1,
+			[]string{r.Key},
 			r.throughputPerSec,
 			r.batchSize,
 			r.maxCapacity,

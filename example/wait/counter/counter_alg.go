@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/vearne/ratelimit"
+	"github.com/vearne/ratelimit/counter"
 	"sync"
 	"time"
 )
 
 func consume(r ratelimit.Limiter, wg *sync.WaitGroup,
-	c *ratelimit.Counter, targetCount int) {
+	c *counter.Counter, targetCount int) {
 	defer wg.Done()
 	var ok bool
 	for {
@@ -36,7 +37,7 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewCounterRateLimiter(
+	limiter, err := counter.NewCounterRateLimiter(
 		context.Background(),
 		client,
 		"key:count",
@@ -52,7 +53,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	total := 500
-	counter := ratelimit.NewCounter()
+	counter := counter.NewCounter()
 	start := time.Now()
 	for i := 0; i < 100; i++ {
 		wg.Add(1)

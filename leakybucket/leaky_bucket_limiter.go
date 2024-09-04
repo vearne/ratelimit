@@ -1,4 +1,4 @@
-package ratelimit
+package leakybucket
 
 import (
 	"context"
@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"github.com/vearne/ratelimit"
 	slog "github.com/vearne/simplelog"
 	"golang.org/x/time/rate"
 	"time"
 )
 
 type LeakyBucketLimiter struct {
-	BaseRateLimiter
+	ratelimit.BaseRateLimiter
 
 	// For interval between requests,the smallest unit of duration is one microseconds.
 	interval time.Duration
@@ -25,8 +26,10 @@ type LeakyBucketLimiter struct {
 	antiDDoSLimiter *rate.Limiter
 }
 
+type Option func(*LeakyBucketLimiter)
+
 func NewLeakyBucketLimiter(ctx context.Context, client redis.Cmdable, key string, duration time.Duration,
-	throughput int) (Limiter, error) {
+	throughput int, opts ...Option) (ratelimit.Limiter, error) {
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
@@ -41,28 +44,44 @@ func NewLeakyBucketLimiter(ctx context.Context, client redis.Cmdable, key string
 		return nil, errors.New("throughput must greater than 0")
 	}
 
-	script := algMap[LeakyBucketAlg]
+	script := ratelimit.AlgMap[ratelimit.LeakyBucketAlg]
 	scriptSHA1 := fmt.Sprintf("%x", sha1.Sum([]byte(script)))
 
 	r := LeakyBucketLimiter{
-		BaseRateLimiter: BaseRateLimiter{redisClient: client, scriptSHA1: scriptSHA1, key: key},
+		BaseRateLimiter: ratelimit.BaseRateLimiter{RedisClient: client, ScriptSHA1: scriptSHA1, Key: key},
 		interval:        duration / time.Duration(throughput),
 		AntiDDoS:        true,
 	}
 
-	if !r.redisClient.ScriptExists(ctx, r.scriptSHA1).Val()[0] {
-		r.redisClient.ScriptLoad(ctx, script).Val()
+	// Loop through each option
+	for _, opt := range opts {
+		// Call the option giving the instantiated
+		opt(&r)
+	}
+
+	values, err := r.RedisClient.ScriptExists(ctx, r.ScriptSHA1).Result()
+	if err != nil {
+		return nil, err
+	}
+	if !values[0] {
+		_, err = r.RedisClient.ScriptLoad(ctx, script).Result()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	throughputPerSec := int(float64(throughput) / float64(duration/time.Second))
-	r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(throughputPerSec*2), throughputPerSec*2)
+	if r.AntiDDoS {
+		r.antiDDoSLimiter = rate.NewLimiter(rate.Limit(throughputPerSec*2), throughputPerSec*2)
+	}
 
 	return &r, nil
 }
 
-// just for test
-func (r *LeakyBucketLimiter) WithAntiDDos(antiDDoS bool) {
-	r.AntiDDoS = antiDDoS
+func WithAntiDDos(antiDDoS bool) Option {
+	return func(r *LeakyBucketLimiter) {
+		r.AntiDDoS = antiDDoS
+	}
 }
 
 // wait until take a token or timeout
@@ -114,10 +133,10 @@ func (r *LeakyBucketLimiter) Take(ctx context.Context) (bool, error) {
 	}
 
 	// 1. try to get from redis
-	x, err := r.redisClient.EvalSha(
+	x, err := r.RedisClient.EvalSha(
 		ctx,
-		r.scriptSHA1,
-		[]string{r.key},
+		r.ScriptSHA1,
+		[]string{r.Key},
 		int(r.interval/time.Microsecond),
 	).Result()
 

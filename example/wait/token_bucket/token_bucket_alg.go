@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/vearne/ratelimit"
+	"github.com/vearne/ratelimit/counter"
+	"github.com/vearne/ratelimit/tokenbucket"
 	slog "github.com/vearne/simplelog"
 	"sync"
 	"time"
 )
 
 func consume(r ratelimit.Limiter, group *sync.WaitGroup,
-	c *ratelimit.Counter, targetCount int) {
+	c *counter.Counter, targetCount int) {
 	defer group.Done()
 	var ok bool
 	for {
@@ -39,7 +41,7 @@ func main() {
 		DB:       0,            // use default DB
 	})
 
-	limiter, err := ratelimit.NewTokenBucketRateLimiter(
+	limiter, err := tokenbucket.NewTokenBucketRateLimiter(
 		context.Background(),
 		client,
 		"key:token",
@@ -55,7 +57,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	total := 50
-	counter := ratelimit.NewCounter()
+	counter := counter.NewCounter()
 	start := time.Now()
 	for i := 0; i < 10; i++ {
 		wg.Add(1)

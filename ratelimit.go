@@ -15,9 +15,9 @@ type Limiter interface {
 // nolint: govet
 type BaseRateLimiter struct {
 	sync.Mutex
-	scriptSHA1  string
-	key         string
-	redisClient redis.Cmdable
+	ScriptSHA1  string
+	Key         string
+	RedisClient redis.Cmdable
 	// For interval between requests,the smallest unit of duration is one microseconds.
-	interval time.Duration
+	Interval time.Duration
 }
