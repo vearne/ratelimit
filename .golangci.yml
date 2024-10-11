@@ -5,10 +5,9 @@ linters:
     - gosimple      # Linter for Go source code that specializes in simplifying a code
     - govet         # Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
     - ineffassign   # Detects when assignments to existing variables are not used
-    - staticcheck   # Staticcheck is a go vet on steroids, applying a ton of static analysis checks
-#    - typecheck     # Like the front-end of a Go compiler, parses and type-checks Go code
-    - unused        # Checks Go code for unused constants, variables, functions and types
-    - copyloopvar
+    - staticcheck   # It's a set of rules from staticcheck. It's not the same thing as the staticcheck binary.
+    - unused        # Checks Go code for unused constants, variables, functions and types.
+    - copyloopvar   # Detects places where loop variables are copied.
 
 linters-settings:
   govet:            # 对于linter govet，我们手动开启了它的某些扫描规则
