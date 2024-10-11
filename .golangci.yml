@@ -17,6 +17,5 @@ linters:
 linters-settings:
   govet:            # 对于linter govet，我们手动开启了它的某些扫描规则
     enable-all: true
-    check-shadowing: true
     disable:
       - fieldalignment
