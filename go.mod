@@ -1,6 +1,6 @@
 module github.com/vearne/ratelimit
 
-go 1.22
+go 1.22.6
 
 require (
 	github.com/go-redis/redismock/v9 v9.2.0
