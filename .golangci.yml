@@ -1,6 +1,6 @@
 linters:
-  disable-all: true  # 关闭其他linter
-  enable:            # 下面是开启的linter列表，之后的英文注释介绍了相应linter的功能
+  disable-all: true  # Turn off other linters
+  enable:
     - errcheck      # Errcheck is a program for checking for unchecked errors in go programs. These unchecked errors can be critical bugs in some cases
     - gosimple      # Linter for Go source code that specializes in simplifying a code
     - govet         # Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
@@ -10,7 +10,7 @@ linters:
     - copyloopvar   # Detects places where loop variables are copied.
 
 linters-settings:
-  govet:            # 对于linter govet，我们手动开启了它的某些扫描规则
+  govet:            # For linter govet, we manually enabled some of its scanning rules
     enable-all: true
     disable:
       - fieldalignment
